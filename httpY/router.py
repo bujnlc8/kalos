@@ -1,15 +1,18 @@
 # coding=utf-8
 
+import re
+
 from verb import Verb
 
-import re
 
 class Router(object):
     """
-    路由封装
-    支持`/a/b/<:id|int>` 这种形式
+    路由封装 ,支持`/a/b/<:id|int>` 这种形式
+    :param group: 分组，分组可以看成是url的前缀
+    :param url: url和group共同构成完整的url
+    :methods: 注册的方法 见`httpY.verb.Verb`
     """
-    def __init__(self, group ="", url="", methods=None):
+    def __init__(self, group="", url="", methods=None):
         self.group = group
         self.url = url
         if not methods:
@@ -19,11 +22,11 @@ class Router(object):
         methods.sort()
         self.methods = methods
         self.complete_url = ("/" if self.group else "") + self.group + self.url
-    
+
     @property
     def has_variable(self):
         return re.search(r"<:.*>", self.complete_url) is not None
-    
+
     def __repr__(self):
         return "{}-{}".format(self.complete_url, self.methods)
 
@@ -33,7 +36,7 @@ class Router(object):
 
     def __hash__(self):
         return hash(self.router)
-    
+
     def __eq__(self, other):
         """
         所谓的相等，是指能否在对方找到匹配条件, 先比较url, 再比较mthod
@@ -66,4 +69,4 @@ class Router(object):
         if self.complete_url == other.complete_url:
             if set(self.methods).intersection(set(other.methods)):
                 return True
-            return False   
+            return False
