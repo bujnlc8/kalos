@@ -2,3 +2,6 @@ venv/
 .idea/
 .vscode/
 *.pyc
+build/
+dist/
+httpY.egg-info/
