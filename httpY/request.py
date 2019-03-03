@@ -103,7 +103,7 @@ class QueryStrings(object):
                 return d
         else:
             if m is not None:
-                return m(self[key])
+                return m(self[key].encode("utf-8"))
             else:
                 return self[key]
 

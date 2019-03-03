@@ -73,7 +73,6 @@ class HttpY(object):
         :param start_response:
         """
         request = Request(environment)
-        print request.query_string,request.bin, request.json, request.args
         router = Router(url=request.path_info, methods=request.method)
         r, handler = self.find_router_handler(router)
         # 处理404
@@ -83,7 +82,11 @@ class HttpY(object):
         elif request.method == Verb.OPTIONS: # 处理OPTIONS
             start_response("200 OK", [("Allow", ",".join(r.methods))])
             return [b""]
-        response = handler(request)
+        # 解析url中的变量，放入handler
+        variables = []
+        if r.has_variable:
+            variables = r.get_variable_list(request.path_info)
+        response = handler(request, *variables)
         start_response("200 OK", [('Content-Type', 'text/plain')])
         return [response]
 

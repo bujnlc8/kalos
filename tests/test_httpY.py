@@ -11,7 +11,8 @@ if __name__ == "__main__":
     app = HttpY()
 
     @app.route(group="book", url="/<:id>")
-    def book(*args):
+    def book(request, id):
+        print request.args, request.args.get("c", m=str)
         return "book"
 
     @app.route(group="", url="/abc", methods=["POST"])

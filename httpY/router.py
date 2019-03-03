@@ -2,7 +2,8 @@
 
 import re
 
-from verb import Verb
+from httpY.verb import Verb
+from decimal import Decimal
 
 
 class Router(object):
@@ -70,3 +71,31 @@ class Router(object):
             if set(self.methods).intersection(set(other.methods)):
                 return True
             return False
+
+    def get_variable_list(self, url):
+        """
+        解析变量
+        :param url:
+        :return:
+        """
+        result = []
+        if not self.has_variable:
+            return result
+        self_splits = self.complete_url.split("/")
+        url_splits = url.split("/")
+        for index in xrange(len(self_splits)):
+            s = self_splits[index]
+            if re.match(r"<:.*>", s):
+                # <:id|int>
+                s = s[2:-1]
+                ss = s.split("|")
+                v = url_splits[index]
+                if len(ss) > 1:
+                    if ss[1] == "int":
+                        v = int(v)
+                    elif ss[1] == "float":
+                        v = float(v)
+                    elif ss[1] == "decimal":
+                        v = Decimal(v)
+                result.append(v)
+        return result
