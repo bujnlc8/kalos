@@ -73,6 +73,7 @@ class Kalos(object):
         :param start_response:
         """
         request = Request(environment)
+        print request.headers
         router = Router(url=request.path_info, methods=request.method)
         r, handler = self.find_router_handler(router)
         # 处理404

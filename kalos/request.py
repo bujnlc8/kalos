@@ -5,6 +5,22 @@ import urllib
 from cgi import parse_header, parse_multipart
 
 from kalos.mime import MIME
+from kalos.utils import ImmutableDict
+
+_header_list = {
+    "SERVER_PROTOCOL": "PROTOCOL",
+    "SERVER_SOFTWARE": "SERVER_SOFTWARE",
+    "REQUEST_METHOD": "METHOD",
+    "SERVER_NAME": "SERVER_NAME",
+    "REMOTE_ADDR": "REMOTE_ADDR",
+    "SERVER_PORT": "SERVER_PORT",
+    "CONTENT_LENGTH": "CONTENT_LENGTH",
+    "HTTP_HOST": "HOST",
+    "HTTP_USER_AGENT": "USER_AGENT",
+    "CONTENT_TYPE": "CONTENT_TYPE",
+    "PATH_INFO": "PATH_INFO",
+    "REMOTE_HOST": "REMOTE_HOST"
+}
 
 
 class Request(object):
@@ -48,13 +64,26 @@ class Request(object):
         # True
         self.wsgi_multiprocess = self._environment["wsgi.multiprocess"]
         # text/plain
-        self.content_type = self._environment["CONTENT_TYPE"]
+        self._content_type = self._environment["CONTENT_TYPE"]
+        self.content_type =  parse_header(self._content_type)[0]
         # http
         self.url_scheme = self._environment["wsgi.url_scheme"]
         # /abc
         self.path_info = self._environment["PATH_INFO"]
         # fileobject
         self.file = self._environment["wsgi.input"]
+
+    @property
+    def headers(self):
+        head = {}
+        for k, v in self._environment.iteritems():
+            if k in _header_list.keys():
+                head[_header_list[k]] = v
+            else:
+                if k.startswith("HTTP_"):
+                    remove_underline = k[5:].replace("_", "-")
+                    head[remove_underline] = v
+        return ImmutableDict(**head)
 
     @property
     def args(self):
@@ -82,7 +111,7 @@ class Request(object):
 
     @property
     def form(self):
-        ctype, pdict = parse_header(self.content_type)
+        ctype, pdict = parse_header(self._content_type)
         if ctype == MIME.Multipart:
             partdict = parse_multipart(self.file, pdict)
             return FieldStorage(**partdict)
