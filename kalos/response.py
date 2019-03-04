@@ -1,7 +1,14 @@
 # coding=utf-8
 
+from kalos import __version__
+from kalos.mime import MIME
+
 
 class StatusCode(object):
+    """
+    http状态码
+    see: https://en.wikipedia.org/wiki/List_of_HTTP_status_codes
+    """
     def __init__(self, status):
         self.status = status
 
@@ -60,12 +67,66 @@ class StatusCode(object):
         if self.status in self._status_code:
             return self._status_code[self.status]
         else:
-            return ""
+            return self._status_code[500]
 
     def __str__(self):
         return self.__repr__()
 
 
 class Response(object):
-    def __init__(self, status):
-        pass
+    """
+    通用response封装
+    :param data: response data
+    :param status: response status
+    :param content_type: response status
+    :param kwargs: they will all be input in header
+    """
+    def __init__(self, data="", status=200, content_type=MIME.Json, **kwargs):
+        self.data = data
+        self.status = status
+        self.content_type = content_type
+        self.headers = [("X-Web-Framework", "Kalos/{}".format(__version__))]
+        self.headers.append(("Content-Type", content_type))
+        for k, v in kwargs.iteritems():
+            self.headers.append((k, v))
+
+    def __call__(self, *args, **kwargs):
+        for k, v in kwargs.iteritems():
+            self.headers.append((k, v))
+        return repr(StatusCode(self.status)), self.headers
+
+
+response_200 = Response()
+
+response_404 = Response(data="kalos is missing...", status=404)
+
+response_401 = Response(data="You are not certification", status=401)
+
+
+def make_redirect(code=302, location="", response =None):
+    """
+    生成重定向跳转
+    :param code: 302,301...
+    :param location: location to redirect
+    :param response: A Response object
+    :return: response
+    """
+    if response is not None:
+        if not isinstance(response, Response):
+            raise Exception("response must be a Response object")
+        response.status = code
+        response.headers.append(("Location", location))
+        return response
+    else:
+        response = Response(status=code, Location=location)
+        return response
+
+
+class WrapperResponse(object):
+    def __init__(self, response, start_response):
+        self.response = response
+        self.start_response = start_response
+
+    def __call__(self, *args, **kwargs):
+        self.start_response(*self.response())
+        return [self.response.data]

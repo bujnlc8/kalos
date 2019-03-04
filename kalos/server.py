@@ -5,6 +5,7 @@ import warnings
 from wsgiref.simple_server import make_server
 
 from kalos.request import Request
+from kalos.response import response_404, WrapperResponse, Response
 from kalos.router import Router
 from kalos.verb import Verb
 
@@ -73,23 +74,35 @@ class Kalos(object):
         :param start_response:
         """
         request = Request(environment)
-        print request.headers
         router = Router(url=request.path_info, methods=request.method)
         r, handler = self.find_router_handler(router)
         # 处理404
         if handler is None:
-            start_response("404 NOT FOUND", [('Content-Type', 'application/json')])
-            return [b""]
+            return WrapperResponse(response_404, start_response)()
         elif request.method == Verb.OPTIONS: # 处理OPTIONS
-            start_response("200 OK", [("Allow", ",".join(r.methods))])
-            return [b""]
+            response = Response(Allow=",".join(r.methods))
+            return WrapperResponse(response, start_response)()
         # 解析url中的变量，放入handler
         variables = []
         if r.has_variable:
             variables = r.get_variable_list(request.path_info)
         response = handler(request, *variables)
-        start_response("200 OK", [('Content-Type', 'text/plain')])
-        return [response]
+        if (type(response) is tuple or type(response) is list) and len(response) > 1:
+            # 第一位为返回的数据， 第二为http code
+            response1 = response[0]
+            http_code = response[1]
+            if isinstance(response1, Response):
+                response1.status = http_code
+                return WrapperResponse(response1, start_response)()
+            else:
+                response_wrap = Response(data=response, status=http_code)
+                return WrapperResponse(response_wrap, start_response)()
+        else:
+            if isinstance(response, Response):
+                return WrapperResponse(response, start_response)()
+            else:
+                response_wrap = Response(data=response)
+                return WrapperResponse(response_wrap, start_response)()
 
     @property
     def routers(self):
