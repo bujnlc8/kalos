@@ -98,7 +98,7 @@ class Response(object):
 
 response_200 = Response()
 
-response_404 = Response(data="kalos is missing...", status=404)
+response_404 = Response(data="Kalos is missing...", status=404)
 
 response_401 = Response(data="You are not certification", status=401)
 

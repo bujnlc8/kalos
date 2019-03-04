@@ -5,4 +5,6 @@ install:
 	pip install dist/*.whl
 
 test:
-    python -m tests.test_kalos
+	pip install requests
+	python -m tests.test_kalos &
+	python -m tests.test_api

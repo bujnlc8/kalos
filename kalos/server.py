@@ -44,7 +44,7 @@ class Kalos(object):
                         msg = 'do not support method {}'.format(m)
                         raise Exception(msg)
             router = Router(new_group, new_url, new_methods)
-            if self.find_router_handler(router):
+            if self.find_router_handler(router)[0]:
                 msg = "duplicate router {}".format(router)
                 raise Exception(msg)
             else:
@@ -67,6 +67,7 @@ class Kalos(object):
         for r, v in self.__router_map__.iteritems():
             if r == router:
                 return r, v
+        return None, None
 
     def wsgi_app(self, environment, start_response):
         """
@@ -100,7 +101,7 @@ class Kalos(object):
                 response1.status = http_code
                 return WrapperResponse(response1, start_response)()
             else:
-                response_wrap = Response(data=response, status=http_code)
+                response_wrap = Response(data=response1, status=http_code)
                 return WrapperResponse(response_wrap, start_response)()
         else:
             if isinstance(response, Response):
