@@ -4,17 +4,17 @@ import functools
 import warnings
 from wsgiref.simple_server import make_server
 
-from httpY.router import Router
-from httpY.verb import Verb
-from httpY.request import Request
+from kalos.request import Request
+from kalos.router import Router
+from kalos.verb import Verb
 
 
-class HttpY(object):
+class Kalos(object):
     """
     A simple http framework
     """
 
-    def __init__(self, name="HttpY", static_dir="static", template_dir="template"):
+    def __init__(self, name="Kalos", static_dir="static", template_dir="template"):
         self.name = name
         self.static_dir = static_dir
         self.template_dir = template_dir

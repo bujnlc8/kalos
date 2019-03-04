@@ -5,4 +5,4 @@ install:
 	pip install dist/*.whl
 
 test:
-    python -m tests.test_httpY
+    python -m tests.test_kalos

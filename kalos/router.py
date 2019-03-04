@@ -1,9 +1,9 @@
 # coding=utf-8
 
 import re
-
-from httpY.verb import Verb
 from decimal import Decimal
+
+from kalos.verb import Verb
 
 
 class Router(object):

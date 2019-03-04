@@ -3,7 +3,7 @@
 import json
 import urllib
 
-from httpY.mime import MIME
+from kalos.mime import MIME
 
 
 class Request(object):

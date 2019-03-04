@@ -5,10 +5,10 @@ import sys
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from httpY.server import HttpY
+from kalos.server import Kalos
 
 if __name__ == "__main__":
-    app = HttpY()
+    app = Kalos()
 
     @app.route(group="book", url="/<:id>")
     def book(request, id):
