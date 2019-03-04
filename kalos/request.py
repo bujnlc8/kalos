@@ -2,7 +2,7 @@
 
 import json
 import urllib
-from cgi import parse_header, parse_multipart
+from cgi import parse_header, parse_multipart, escape
 
 from kalos.mime import MIME
 from kalos.utils import ImmutableDict
@@ -92,7 +92,7 @@ class Request(object):
         kv = {}
         for x in qss:
             xx = x.split("=")
-            kv[xx[0]] = xx[1].decode("utf-8")
+            kv[xx[0]] = escape(xx[1].decode("utf-8"))
         qs_obj = FieldStorage(**kv)
         return qs_obj
 
@@ -121,7 +121,7 @@ class Request(object):
             kv = {}
             for x in form_obj:
                 xx = x.split("=")
-                kv[xx[0]] = xx[1].decode("utf-8")
+                kv[xx[0]] = escape(xx[1].decode("utf-8"))
             return FieldStorage(**kv)
         else:
             return FieldStorage()
