@@ -6,4 +6,6 @@ class MIME(object):
     mime列表
     """
     Json = "application/json"
-    text = "text/plain"
+    Text = "text/plain"
+    Form = "application/x-www-form-urlencoded"
+    Multipart = "multipart/form-data"

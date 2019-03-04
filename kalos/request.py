@@ -2,6 +2,7 @@
 
 import json
 import urllib
+from cgi import parse_header, parse_multipart
 
 from kalos.mime import MIME
 
@@ -63,29 +64,46 @@ class Request(object):
         for x in qss:
             xx = x.split("=")
             kv[xx[0]] = xx[1].decode("utf-8")
-        qs_obj = QueryStrings(**kv)
+        qs_obj = FieldStorage(**kv)
         return qs_obj
 
     @property
-    def bin(self):
-        if hasattr(self, "_bin"):
-            return self._bin
+    def data(self):
+        if hasattr(self, "_data"):
+            return self._data
         else:
-            self._bin = self.file.read(int(self.content_length))
-        return self._bin
+            self._data = self.file.read(int(self.content_length))
+        return self._data
 
     @property
     def json(self):
         if self.content_type == MIME.Json:
-            return json.loads(str(self.bin))
+            return json.loads(str(self.data))
+
+    @property
+    def form(self):
+        ctype, pdict = parse_header(self.content_type)
+        if ctype == MIME.Multipart:
+            partdict = parse_multipart(self.file, pdict)
+            return FieldStorage(**partdict)
+        elif ctype == MIME.Form:
+            form_obj = urllib.unquote_plus(str(self.data))
+            form_obj = form_obj.split("&")
+            kv = {}
+            for x in form_obj:
+                xx = x.split("=")
+                kv[xx[0]] = xx[1].decode("utf-8")
+            return FieldStorage(**kv)
+        else:
+            return FieldStorage()
 
 
-class QueryStrings(object):
+class FieldStorage(object):
     def __init__(self, **kwargs):
-        self.__dict__["__qs_field__"] = []
+        self.__dict__["__s_field__"] = []
         for k, v in kwargs.iteritems():
             self.__dict__[k] = v
-            self.__dict__['__qs_field__'].append(k)
+            self.__dict__['__s_field__'].append(k)
 
     def __getitem__(self, key):
         return self.__dict__[key]
@@ -94,7 +112,7 @@ class QueryStrings(object):
         self.__dict__[key] = value
 
     def keys(self):
-        for x in self.__dict__["__qs_field__"]:
+        for x in self.__dict__["__s_field__"]:
             yield x
 
     def get(self, key, d=None, m=None):
