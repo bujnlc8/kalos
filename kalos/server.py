@@ -10,6 +10,7 @@ from kalos.response import response_404, WrapperResponse, Response
 from kalos.router import Router
 from kalos.session import Session, session_local
 from kalos.verb import Verb
+from kalos import __kalos__
 
 
 class Kalos(object):
@@ -128,5 +129,8 @@ class Kalos(object):
     def run(self, host="127.0.0.1", port=10101):
         server = make_server(host, port, self.wsgi_app)
         print("{} is listening {}:{}".format(self.name, host, port))
+        print("\033[1;32;40m")
+        print(__kalos__)
+        print("\033[0m")
         print("Routers list:\n{}".format("\n".join(map(lambda x: repr(x), self.routers.keys()))))
         server.serve_forever()
