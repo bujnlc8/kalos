@@ -8,6 +8,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from kalos.server import Kalos
 from kalos.response import Response
 import json
+from kalos.local import request
 
 books = dict()
 
@@ -27,7 +28,8 @@ if __name__ == "__main__":
     app = Kalos()
 
     @app.route(group="book", url="/put", methods=["POST"])
-    def add_book(request):
+    def add_book():
+        print request, request.form
         id_ = request.form.get("id", m=int)
         name = request.form.get("name")
         book = Book(id_=id_, name=name)
@@ -37,14 +39,14 @@ if __name__ == "__main__":
         return book.to_string(), 200
 
     @app.route(group="book", url="/<:id|int>", methods="GET")
-    def get_book(request, id):
+    def get_book(id):
         book = books.get(id)
         if not book:
             return "", 404
         return book.to_string()
 
     @app.route(group="book", url="/<:id|int>", methods=["DELETE"])
-    def delete_book(request, id):
+    def delete_book(id):
         books.pop(id)
         return json.dumps({"code": 0, "len": len(books)})
 

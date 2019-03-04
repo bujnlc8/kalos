@@ -9,6 +9,7 @@ from kalos.request import Request
 from kalos.response import response_404, WrapperResponse, Response
 from kalos.router import Router
 from kalos.verb import Verb
+from kalos.local import request_local
 
 
 class Kalos(object):
@@ -76,6 +77,8 @@ class Kalos(object):
         :param start_response:
         """
         request = Request(environment)
+        # 将request放入request_local
+        request_local.put("request", request)
         router = Router(url=request.path_info, methods=request.method)
         r, handler = self.find_router_handler(router)
         # 处理404
@@ -92,7 +95,11 @@ class Kalos(object):
         if len(argspec.args) == 0:
             response = handler()
         else:
-            response = handler(request, *variables)
+            if argspec.args[0] == "request":
+                response = handler(request, *variables)
+            else:
+                response = handler(*variables)
+        request_local.remove("request")
         if (type(response) is tuple or type(response) is list) and len(response) > 1:
             # 第一位为返回的数据， 第二为http code
             response1 = response[0]
