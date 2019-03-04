@@ -4,9 +4,9 @@ import json
 import urllib
 from cgi import parse_header, parse_multipart, escape
 
+from kalos.local import Local
 from kalos.mime import MIME
 from kalos.utils import ImmutableDict
-from kalos.local import Local, Proxy
 
 _header_list = {
     "SERVER_PROTOCOL": "PROTOCOL",
@@ -20,7 +20,8 @@ _header_list = {
     "HTTP_USER_AGENT": "USER_AGENT",
     "CONTENT_TYPE": "CONTENT_TYPE",
     "PATH_INFO": "PATH_INFO",
-    "REMOTE_HOST": "REMOTE_HOST"
+    "REMOTE_HOST": "REMOTE_HOST",
+    "COOKIE": "COOKIE"
 }
 
 

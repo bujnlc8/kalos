@@ -9,6 +9,7 @@ from kalos.server import Kalos
 from kalos.response import Response
 import json
 from kalos.request import request
+from kalos.session import session
 
 books = dict()
 
@@ -29,7 +30,6 @@ if __name__ == "__main__":
 
     @app.route(group="book", url="/put", methods=["POST"])
     def add_book():
-        print request, request.form
         id_ = request.form.get("id", m=int)
         name = request.form.get("name")
         book = Book(id_=id_, name=name)
