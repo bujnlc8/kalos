@@ -1,0 +1,9 @@
+language: python
+python:
+  - "2.7.15"
+
+script:
+  - make test
+
+after_script:
+  - make build -B && make install && make test
