@@ -60,14 +60,14 @@ class StatusCode(object):
         502: "502 Bad Gateway",
         503: "503 Service Unavailable",
         504: "504 Gateway Timeout",
-        505: "505 HTTP Version Not Supported"
+        505: "505 HTTP Version Not Supported",
+        999: "999 HTTP Code Not Supported"
     }
 
     def __repr__(self):
         if self.status in self._status_code:
             return self._status_code[self.status]
-        else:
-            return self._status_code[500]
+        return self._status_code[999]
 
     def __str__(self):
         return self.__repr__()
@@ -103,7 +103,7 @@ response_404 = Response(data="kalos is missing...", status=404)
 response_401 = Response(data="You are not certification", status=401)
 
 
-def make_redirect(code=302, location="", response =None):
+def make_redirect(code=302, location="", response=None):
     """
     生成重定向跳转
     :param code: 302,301...

@@ -1,6 +1,7 @@
 # coding=utf-8
 
 import functools
+import inspect
 import warnings
 from wsgiref.simple_server import make_server
 
@@ -79,14 +80,18 @@ class Kalos(object):
         # 处理404
         if handler is None:
             return WrapperResponse(response_404, start_response)()
-        elif request.method == Verb.OPTIONS: # 处理OPTIONS
+        elif request.method == Verb.OPTIONS:  # 处理OPTIONS
             response = Response(Allow=",".join(r.methods))
             return WrapperResponse(response, start_response)()
         # 解析url中的变量，放入handler
         variables = []
         if r.has_variable:
             variables = r.get_variable_list(request.path_info)
-        response = handler(request, *variables)
+        argspec = inspect.getargspec(handler)
+        if len(argspec.args) == 0:
+            response = handler()
+        else:
+            response = handler(request, *variables)
         if (type(response) is tuple or type(response) is list) and len(response) > 1:
             # 第一位为返回的数据， 第二为http code
             response1 = response[0]
@@ -110,6 +115,6 @@ class Kalos(object):
 
     def run(self, host="127.0.0.1", port=10101):
         server = make_server(host, port, self.wsgi_app)
-        print "{} is listening {}:{}".format(self.name, host, port)
-        print "Routers list:\n{}".format("\n".join(map(lambda x: repr(x), self.routers.keys())))
+        print("{} is listening {}:{}".format(self.name, host, port))
+        print("Routers list:\n{}".format("\n".join(map(lambda x: repr(x), self.routers.keys()))))
         server.serve_forever()
