@@ -8,7 +8,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from kalos.server import Kalos
 from kalos.response import Response
 import json
-from kalos.local import request
+from kalos.request import request
 
 books = dict()
 

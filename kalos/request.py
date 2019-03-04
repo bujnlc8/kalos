@@ -6,6 +6,7 @@ from cgi import parse_header, parse_multipart, escape
 
 from kalos.mime import MIME
 from kalos.utils import ImmutableDict
+from kalos.local import Local, Proxy
 
 _header_list = {
     "SERVER_PROTOCOL": "PROTOCOL",
@@ -159,3 +160,8 @@ class FieldStorage(object):
         for k in self.keys():
             kv[k] = self[k]
         return "{}".format(kv)
+
+
+request_local = Local()
+
+request = request_local("request")

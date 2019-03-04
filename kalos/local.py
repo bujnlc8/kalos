@@ -1,6 +1,5 @@
 # coding=utf-8
 
-from functools import partial
 from thread import get_ident
 
 
@@ -21,6 +20,7 @@ class Local(object):
     """
     实现一个线程安全的变量存取，主要是根据不同线程有不同的ident实现
     """
+
     def __init__(self):
         # self.__storage__ = {}  这样写会导致死循环
         object.__setattr__(self, "__storage__", {})
@@ -53,6 +53,7 @@ class Local(object):
     def __call__(self, name):
         def myself():
             return self
+
         return Proxy(myself, name)
 
     def put(self, name, item):
@@ -60,8 +61,3 @@ class Local(object):
 
     def remove(self, name):
         self.__delattr__(name)
-
-
-request_local = Local()
-
-request = request_local("request")

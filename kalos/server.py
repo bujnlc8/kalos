@@ -5,11 +5,10 @@ import inspect
 import warnings
 from wsgiref.simple_server import make_server
 
-from kalos.request import Request
+from kalos.request import Request, request_local
 from kalos.response import response_404, WrapperResponse, Response
 from kalos.router import Router
 from kalos.verb import Verb
-from kalos.local import request_local
 
 
 class Kalos(object):
