@@ -4,4 +4,4 @@ venv/
 *.pyc
 build/
 dist/
-httpY.egg-info/
+Kalos.egg-info/
