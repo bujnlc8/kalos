@@ -2,6 +2,7 @@
 
 from kalos import __version__
 from kalos.mime import MIME
+from kalos.utils import cookie_date
 
 
 class StatusCode(object):
@@ -130,3 +131,17 @@ class WrapperResponse(object):
     def __call__(self, *args, **kwargs):
         self.start_response(*self.response())
         return [self.response.data]
+
+    def set_cookie(self, kvs, max_age=3600 * 24 * 7, expires=None, domain=None, path="/", http_only=True):
+        cookies = [kvs]
+        cookies.append("Max-Age=%s" % max_age)
+        if expires:
+            cookies.append("Expires=%s"% cookie_date(expires))
+        if domain:
+            cookies.append("Domain=%s" % domain)
+        if path:
+            cookies.append("Path=%s"%path)
+        if http_only:
+            cookies.append("HttpOnly")
+
+        self.response.headers.append(("Set-Cookie", "; ".join(cookies)))

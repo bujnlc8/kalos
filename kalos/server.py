@@ -5,12 +5,14 @@ import inspect
 import warnings
 from wsgiref.simple_server import make_server
 
+from kalos import __kalos__
 from kalos.request import Request, request_local
 from kalos.response import response_404, WrapperResponse, Response
 from kalos.router import Router
 from kalos.session import Session, session_local
 from kalos.verb import Verb
-from kalos import __kalos__
+from kalos.utils import Env
+from itsdangerous import URLSafeSerializer
 
 
 class Kalos(object):
@@ -23,6 +25,8 @@ class Kalos(object):
         self.static_dir = static_dir
         self.template_dir = template_dir
         self._SessionInterface = Session  # session处理类，可以重写
+        self.app_env = Env(name)   # 应用环境变量
+        self._safe_serializer = URLSafeSerializer(self.app_env.SECRET_KEY, self.app_env.SALT)
 
     __router_map__ = {}
 
@@ -81,7 +85,7 @@ class Kalos(object):
         request = Request(environment)
         # 将request放入request_local
         request_local.put("request", request)
-        opened_session = self._SessionInterface().open_session(request)
+        opened_session = self._SessionInterface().open_session(self, request)
         session_local.put("session", opened_session)
         router = Router(url=request.path_info, methods=request.method)
         r, handler = self.find_router_handler(router)
@@ -103,24 +107,26 @@ class Kalos(object):
                 response = handler(request, *variables)
             else:
                 response = handler(*variables)
-        request_local.remove("request")
-        session_local.remove("session")
         if (type(response) is tuple or type(response) is list) and len(response) > 1:
             # 第一位为返回的数据， 第二为http code
             response1 = response[0]
             http_code = response[1]
             if isinstance(response1, Response):
                 response1.status = http_code
-                return WrapperResponse(response1, start_response)()
+                wrapper_resp = WrapperResponse(response1, start_response)
             else:
                 response_wrap = Response(data=response1, status=http_code)
-                return WrapperResponse(response_wrap, start_response)()
+                wrapper_resp = WrapperResponse(response_wrap, start_response)
         else:
             if isinstance(response, Response):
-                return WrapperResponse(response, start_response)()
+                wrapper_resp = WrapperResponse(response, start_response)
             else:
                 response_wrap = Response(data=response)
-                return WrapperResponse(response_wrap, start_response)()
+                wrapper_resp = WrapperResponse(response_wrap, start_response)
+        opened_session.save_session(self, wrapper_resp)
+        request_local.remove("request")
+        session_local.remove("session")
+        return wrapper_resp()
 
     @property
     def routers(self):

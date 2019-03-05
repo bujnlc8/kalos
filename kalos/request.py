@@ -21,7 +21,7 @@ _header_list = {
     "CONTENT_TYPE": "CONTENT_TYPE",
     "PATH_INFO": "PATH_INFO",
     "REMOTE_HOST": "REMOTE_HOST",
-    "COOKIE": "COOKIE"
+    "HTTP_COOKIE": "COOKIE"
 }
 
 
@@ -86,6 +86,11 @@ class Request(object):
                     remove_underline = k[5:].replace("_", "-")
                     head[remove_underline] = v
         return ImmutableDict(**head)
+
+    @property
+    def cookie(self):
+        c = Cookie(self.headers.get("COOKIE", ""))
+        return c
 
     @property
     def args(self):
@@ -166,3 +171,43 @@ class FieldStorage(object):
 request_local = Local()
 
 request = request_local("request")
+
+
+class Cookie(object):
+    """
+    Cookie封装
+    :param line: 最原始的cookie
+    """
+    def __init__(self, line):
+        object.__setattr__(self, "__origin_cookie__", line)
+        object.__setattr__(self, "__cookie__dict__", {})
+        if line:
+            split_items = line.split("; ")
+            for item in split_items:
+                key, value = item.split("=")
+                setattr(self, key, value)
+
+    def __iter__(self):
+        for k, v in self.__cookie__dict__.iteritems():
+            yield k,v
+
+    def __setattr__(self, key, value):
+        self.__cookie__dict__[key] = value
+
+    def __getattr__(self, item):
+        return self.__cookie__dict__[item]
+
+    def __getitem__(self, item):
+        return self.__getattr__(item)
+
+    def __setitem__(self, key, value):
+        self.__setattr__(key, value)
+
+    def __call__(self, name):
+        return self[name]
+
+    def get(self, name):
+        try:
+            return self[name]
+        except KeyError:
+            return ""

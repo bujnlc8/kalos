@@ -1,32 +1,7 @@
 # coding=utf-8
 
 from thread import get_ident
-
-
-class Proxy(object):
-    def __init__(self, func, name=None):
-        object.__setattr__(self, "__func__", func)
-        object.__setattr__(self, "__name__", name)
-
-    def __getattr__(self, item):
-        return getattr(getattr(self.__func__(), self.__name__), item)
-
-    def __setattr__(self, key, value):
-        obj = getattr(self.__func__(), self.__name__)
-        setattr(obj, key, value)
-        setattr(self.__func__(), self.__name__, obj)
-
-    def __setitem__(self, key, value):
-        obj = getattr(self.__func__(), self.__name__)
-        obj.__setitem__(key, value)
-        setattr(self.__func__(), self.__name__, obj)
-
-    def __getitem__(self, item):
-        return getattr(self.__func__(), self.__name__).__getitem__(item)
-
-    @property
-    def __dict__(self):
-        return getattr(self.__func__(), self.__name__).__dict__
+from kalos.utils import Proxy
 
 
 class Local(object):

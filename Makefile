@@ -5,6 +5,6 @@ install:
 	pip install dist/*.whl
 
 test:
-	pip install requests
+	pip install requests itsdangerous==1.1.0
 	python -m tests.test_kalos &
 	python -m tests.test_api
