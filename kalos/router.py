@@ -13,6 +13,7 @@ class Router(object):
     :param url: url和group共同构成完整的url
     :methods: 注册的方法 见`httpY.verb.Verb`
     """
+
     def __init__(self, group="", url="", methods=None):
         self.group = group
         self.url = url
@@ -91,11 +92,14 @@ class Router(object):
                 ss = s.split("|")
                 v = url_splits[index]
                 if len(ss) > 1:
-                    if ss[1] == "int":
-                        v = int(v)
-                    elif ss[1] == "float":
-                        v = float(v)
-                    elif ss[1] == "decimal":
-                        v = Decimal(v)
+                    try:
+                        if ss[1] == "int":
+                            v = int(v)
+                        elif ss[1] == "float":
+                            v = float(v)
+                        elif ss[1] == "decimal":
+                            v = Decimal(v)
+                    except ValueError as e:
+                        raise e
                 result.append(v)
         return result

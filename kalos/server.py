@@ -5,14 +5,15 @@ import inspect
 import warnings
 from wsgiref.simple_server import make_server
 
+from itsdangerous import URLSafeSerializer
+
 from kalos import __kalos__
 from kalos.request import Request, request_local
 from kalos.response import response_404, WrapperResponse, Response
 from kalos.router import Router
 from kalos.session import Session, session_local
+from kalos.utils import Env, wrapper_pangolin
 from kalos.verb import Verb
-from kalos.utils import Env
-from itsdangerous import URLSafeSerializer
 
 
 class Kalos(object):
@@ -27,11 +28,69 @@ class Kalos(object):
         self._SessionInterface = Session  # session处理类，可以重写
         self.app_env = Env(name)   # 应用环境变量
         self._safe_serializer = URLSafeSerializer(self.app_env.SECRET_KEY, self.app_env.SALT)
+        self.before_request_funcs = []  # 在请求处理之前调用
+        self.after_request_funcs = []  # 请求处理完，返回response之前调用
+        self.before_handler_funcs = []  # 在handler调用之前调用
+        self.after_handler_funcs = []   # 在handler调用之后调用
+
+    def register_before_request(self, f):
+        """
+        注册请求处理之前调用的方法, 没有参数
+        :param f:
+        :return:f:
+        """
+        self.before_request_funcs.append(f)
+        return f
+
+    def register_after_request(self, f):
+        """
+        注册请求处理完，返回response之前调用的方法, 参数为response对象
+        :param f:
+        :return:f:
+        """
+        self.after_request_funcs.append(f)
+        return f
+
+    def register_before_handle(self, f):
+        """
+        注册在handler调用之前调用的方法
+        :param f:
+        :return:f:
+        """
+        self.before_handler_funcs.append(f)
+        return f
+
+    def register_after_handle(self, f):
+        """
+        注册在handler调用之后调用的方法
+        :param f:
+        :return:f:
+        """
+        self.after_handler_funcs.append(f)
+        return f
 
     __router_map__ = {}
 
     def route(self, group="", url="/", methods=None):
         def wrapper(func):
+            @functools.wraps(func)
+            def inner_wrapper(*args, **kwargs):
+                def inner_inner_wrapper(*args, **kwargs):
+                    for f in self.before_handler_funcs:
+                        try:
+                            f()
+                        except Exception as e:
+                            warnings.warn(e, RuntimeWarning)
+                    resp = func(*args, **kwargs)
+                    for f in self.after_handler_funcs:
+                        try:
+                            f()
+                        except Exception as e:
+                            warnings.warn(e, RuntimeWarning)
+                    return resp
+                return inner_inner_wrapper(*args, **kwargs)
+            # 弥补wrapper之后签名改变的问题
+            inner_wrapper = wrapper_pangolin(inner_wrapper, func)
             new_group, new_url, new_methods = group, url, methods
             if new_group and new_group.startswith("/"):
                 new_group = new_group[1:]
@@ -55,14 +114,8 @@ class Kalos(object):
                 msg = "duplicate router {}".format(router)
                 raise Exception(msg)
             else:
-                self.__class__.__router_map__[router] = func
-
-            @functools.wraps(func)
-            def inner_wrapper(*args, **kwargs):
-                return func(*args, **kwargs)
-
+                self.__class__.__router_map__[router] = inner_wrapper
             return inner_wrapper
-
         return wrapper
 
     def find_router_handler(self, router):
@@ -87,43 +140,54 @@ class Kalos(object):
         request_local.put("request", request)
         opened_session = self._SessionInterface().open_session(self, request)
         session_local.put("session", opened_session)
+        for f in self.before_request_funcs:
+            try:
+                f()
+            except Exception as e:
+                warnings.warn(e, RuntimeWarning)
         router = Router(url=request.path_info, methods=request.method)
         r, handler = self.find_router_handler(router)
         # 处理404
         if handler is None:
-            return WrapperResponse(response_404, start_response)()
+            wrapper_resp = WrapperResponse(response_404, start_response)
         elif request.method == Verb.OPTIONS:  # 处理OPTIONS
             response = Response(Allow=",".join(r.methods))
-            return WrapperResponse(response, start_response)()
-        # 解析url中的变量，放入handler
-        variables = []
-        if r.has_variable:
-            variables = r.get_variable_list(request.path_info)
-        argspec = inspect.getargspec(handler)
-        if len(argspec.args) == 0:
-            response = handler()
+            wrapper_resp = WrapperResponse(response, start_response)
         else:
-            if argspec.args[0] == "request":
-                response = handler(request, *variables)
+            # 解析url中的变量，放入handler
+            variables = []
+            if r.has_variable:
+                variables = r.get_variable_list(request.path_info)
+            argspec = inspect.getargspec(handler.__origin_func__)
+            if len(argspec.args) == 0:
+                response = handler()
             else:
-                response = handler(*variables)
-        if (type(response) is tuple or type(response) is list) and len(response) > 1:
-            # 第一位为返回的数据， 第二为http code
-            response1 = response[0]
-            http_code = response[1]
-            if isinstance(response1, Response):
-                response1.status = http_code
-                wrapper_resp = WrapperResponse(response1, start_response)
+                if argspec.args[0] == "request":
+                    response = handler(request, *variables)
+                else:
+                    response = handler(*variables)
+            if (type(response) is tuple or type(response) is list) and len(response) > 1:
+                # 第一位为返回的数据， 第二为http code
+                response1 = response[0]
+                http_code = response[1]
+                if isinstance(response1, Response):
+                    response1.status = http_code
+                    wrapper_resp = WrapperResponse(response1, start_response)
+                else:
+                    response_wrap = Response(data=response1, status=http_code)
+                    wrapper_resp = WrapperResponse(response_wrap, start_response)
             else:
-                response_wrap = Response(data=response1, status=http_code)
-                wrapper_resp = WrapperResponse(response_wrap, start_response)
-        else:
-            if isinstance(response, Response):
-                wrapper_resp = WrapperResponse(response, start_response)
-            else:
-                response_wrap = Response(data=response)
-                wrapper_resp = WrapperResponse(response_wrap, start_response)
+                if isinstance(response, Response):
+                    wrapper_resp = WrapperResponse(response, start_response)
+                else:
+                    response_wrap = Response(data=response)
+                    wrapper_resp = WrapperResponse(response_wrap, start_response)
         opened_session.save_session(self, wrapper_resp)
+        for f in self.after_request_funcs:
+            try:
+                wrapper_resp = f(wrapper_resp)
+            except Exception as e:
+                warnings.warn(e, RuntimeWarning)
         request_local.remove("request")
         session_local.remove("session")
         return wrapper_resp()

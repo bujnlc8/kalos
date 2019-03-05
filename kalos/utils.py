@@ -86,11 +86,25 @@ def cookie_date(d):
     :return:
     """
     d = d.utctimetuple()
-    delim = "-"
     return '%s, %02d%s%s%s%s %02d:%02d:%02d GMT' % (
         ('Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun')[d.tm_wday],
-        d.tm_mday, delim,
+        d.tm_mday, "-",
         ('Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep',
          'Oct', 'Nov', 'Dec')[d.tm_mon - 1],
-        delim, str(d.tm_year), d.tm_hour, d.tm_min, d.tm_sec
+        "-", str(d.tm_year), d.tm_hour, d.tm_min, d.tm_sec
     )
+
+
+def wrapper_pangolin(wrapper, wrapped):
+    """
+    装饰一个方法时，装饰后的方法的参数签名和原来不同不同，
+    通过__origin__func__传递最原始的方法
+    :param wrapper: 装饰方法
+    :param wrapped: 被装饰方法
+    :return:
+    """
+    if hasattr(wrapped, "__origin_func__"):
+        wrapper.__origin_func__ = wrapped.__origin_func__
+    else:
+        wrapper.__origin_func__ = wrapped
+    return wrapper

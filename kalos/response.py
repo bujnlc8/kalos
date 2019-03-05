@@ -10,6 +10,7 @@ class StatusCode(object):
     http状态码
     see: https://en.wikipedia.org/wiki/List_of_HTTP_status_codes
     """
+
     def __init__(self, status):
         self.status = status
 
@@ -82,14 +83,17 @@ class Response(object):
     :param content_type: response status
     :param kwargs: they will all be input in header
     """
+
     def __init__(self, data="", status=200, content_type=MIME.Json, **kwargs):
         self.data = data
         self.status = status
         self.content_type = content_type
+        self.length = len(self.data)
         self.headers = [("X-Web-Framework", "Kalos/{}".format(__version__))]
         self.headers.append(("Content-Type", content_type))
         for k, v in kwargs.iteritems():
             self.headers.append((k, v))
+        self.headers.append(("Content-Length", str(self.length)))
 
     def __call__(self, *args, **kwargs):
         for k, v in kwargs.iteritems():
@@ -136,12 +140,18 @@ class WrapperResponse(object):
         cookies = [kvs]
         cookies.append("Max-Age=%s" % max_age)
         if expires:
-            cookies.append("Expires=%s"% cookie_date(expires))
+            cookies.append("Expires=%s" % cookie_date(expires))
         if domain:
             cookies.append("Domain=%s" % domain)
         if path:
-            cookies.append("Path=%s"%path)
+            cookies.append("Path=%s" % path)
         if http_only:
             cookies.append("HttpOnly")
 
         self.response.headers.append(("Set-Cookie", "; ".join(cookies)))
+
+    def set_header(self, key, value):
+        self.response.append((key, value))
+
+    def __getattr__(self, item):
+        return getattr(self.response, item)
