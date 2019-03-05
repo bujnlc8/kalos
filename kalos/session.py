@@ -5,9 +5,8 @@ from abc import ABCMeta, abstractmethod, abstractproperty
 
 from datetime import datetime, timedelta
 
-from kalos.local import Local
 from kalos.response import response_401
-from kalos.utils import Proxy, wrapper_pangolin
+from kalos.utils import Proxy, wrapper_pangolin, Local
 
 
 class UserABC(object):

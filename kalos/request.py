@@ -4,9 +4,8 @@ import json
 import urllib
 from cgi import parse_header, parse_multipart, escape
 
-from kalos.local import Local
 from kalos.mime import MIME
-from kalos.utils import ImmutableDict
+from kalos.utils import ImmutableDict, Local
 
 _header_list = {
     "SERVER_PROTOCOL": "PROTOCOL",
