@@ -155,3 +155,21 @@ class WrapperResponse(object):
 
     def __getattr__(self, item):
         return getattr(self.response, item)
+
+
+def wrap_response(func, *args, **kwargs):
+    response = func(*args, **kwargs)
+    if (type(response) is tuple or type(response) is list) and len(response) > 1:
+        # 第一位为返回的数据， 第二为http code
+        resp = response[0]
+        http_code = response[1]
+        if isinstance(resp, Response):
+            resp.status = http_code
+        else:
+            resp = Response(data=resp, status=http_code)
+    else:
+        if not isinstance(response, Response):
+            resp = Response(data=response)
+        else:
+            resp = response
+    return resp

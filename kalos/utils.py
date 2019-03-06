@@ -142,6 +142,8 @@ class Local(object):
     def __delattr__(self, name):
         try:
             del self.__storage__[get_ident()][name]
+            if not self.__storage__[get_ident()]:
+                del self.__storage__[get_ident()]
         except KeyError:
             raise AttributeError(name)
 

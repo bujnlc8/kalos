@@ -24,6 +24,7 @@ class TestApi(unittest.TestCase):
     def test_api(self):
         response = requests.request("PUT", url=api_list["put_put"], data={"id": 1, "name": "十万个为什么"})
         assert response.status_code == 401
+        print response.text, '****'
 
         response = requests.request("POST", url=api_list["put"], data={"id": 1, "name": "十万个为什么"})
         assert response.status_code == 200

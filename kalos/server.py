@@ -9,7 +9,7 @@ from itsdangerous import URLSafeSerializer
 
 from kalos import __kalos__
 from kalos.request import Request, request_local
-from kalos.response import response_404, WrapperResponse, Response
+from kalos.response import response_404, WrapperResponse, Response, wrap_response
 from kalos.router import Router
 from kalos.session import Session, session_local
 from kalos.utils import Env, wrapper_pangolin
@@ -32,6 +32,16 @@ class Kalos(object):
         self.after_request_funcs = []  # 请求处理完，返回response之前调用
         self.before_handler_funcs = []  # 在handler调用之前调用
         self.after_handler_funcs = []   # 在handler调用之后调用
+        self.app_error_handlers = dict()  # http 错误代码处理映射
+    
+    def register_app_error_handler(self, error_no):
+        """
+        注册http错误码处理
+        """
+        def recoder(f):
+            self.app_error_handlers[error_no] = f
+            return f
+        return recoder
 
     def register_before_request(self, f):
         """
@@ -69,6 +79,9 @@ class Kalos(object):
         self.after_handler_funcs.append(f)
         return f
 
+    def __register__(self, path):
+        __import__(path)
+
     __router_map__ = {}
 
     def route(self, group="", url="/", methods=None):
@@ -81,7 +94,8 @@ class Kalos(object):
                             f()
                         except Exception as e:
                             warnings.warn(e, RuntimeWarning)
-                    resp = func(*args, **kwargs)
+                    resp = wrap_response(func, *args, **kwargs)
+                    # 包装成
                     for f in self.after_handler_funcs:
                         try:
                             f()
@@ -149,10 +163,9 @@ class Kalos(object):
         r, handler = self.find_router_handler(router)
         # 处理404
         if handler is None:
-            wrapper_resp = WrapperResponse(response_404, start_response)
+            response = response_404
         elif request.method == Verb.OPTIONS:  # 处理OPTIONS
             response = Response(Allow=",".join(r.methods))
-            wrapper_resp = WrapperResponse(response, start_response)
         else:
             # 解析url中的变量，放入handler
             variables = []
@@ -166,22 +179,11 @@ class Kalos(object):
                     response = handler(request, *variables)
                 else:
                     response = handler(*variables)
-            if (type(response) is tuple or type(response) is list) and len(response) > 1:
-                # 第一位为返回的数据， 第二为http code
-                response1 = response[0]
-                http_code = response[1]
-                if isinstance(response1, Response):
-                    response1.status = http_code
-                    wrapper_resp = WrapperResponse(response1, start_response)
-                else:
-                    response_wrap = Response(data=response1, status=http_code)
-                    wrapper_resp = WrapperResponse(response_wrap, start_response)
-            else:
-                if isinstance(response, Response):
-                    wrapper_resp = WrapperResponse(response, start_response)
-                else:
-                    response_wrap = Response(data=response)
-                    wrapper_resp = WrapperResponse(response_wrap, start_response)
+        # 调用错误码处理方法
+        handle_error_func = self.app_error_handlers.get(response.status)
+        if handle_error_func and callable(handle_error_func):
+            response = wrap_response(handle_error_func)
+        wrapper_resp = WrapperResponse(response, start_response)
         opened_session.save_session(self, wrapper_resp)
         for f in self.after_request_funcs:
             try:

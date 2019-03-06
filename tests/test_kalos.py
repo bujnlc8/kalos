@@ -30,11 +30,18 @@ def p(*args):
     print(args)
 
 
+app = Kalos()
+
 if __name__ == "__main__":
-    app = Kalos()
+    @app.register_app_error_handler(401)
+    def handle():
+        return json.dumps({
+            "code": 401,
+            "msg": "未授权"
+        }), 401
     app.register_before_handle(lambda :  p("before handle"))
     app.register_after_handle(lambda :  p("after handle"))
-    app.register_before_request(lambda : p("before request", request, session))
+    app.register_before_request(lambda : p("before request"))
     app.register_after_request(lambda x: x)
 
     # it works as add_book = app.route(...)(login_required(add_book))
@@ -69,7 +76,10 @@ if __name__ == "__main__":
 
     @app.route(group="book", url="/<:id|int>", methods=["DELETE"])
     def delete_book(id):
-        books.pop(id)
+        try:
+            books.pop(id)
+        except KeyError:
+            pass
         return json.dumps({"code": 0, "len": len(books)})
 
     @app.route(url="/redirect")
