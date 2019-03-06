@@ -1,8 +1,8 @@
 # coding=utf-8
 
-import functools
 import inspect
 import warnings
+from importlib import import_module
 from wsgiref.simple_server import make_server
 
 from itsdangerous import URLSafeSerializer
@@ -12,7 +12,7 @@ from kalos.request import Request, request_local
 from kalos.response import response_404, WrapperResponse, Response, wrap_response
 from kalos.router import Router
 from kalos.session import Session, session_local
-from kalos.utils import Env, wrapper_pangolin
+from kalos.utils import Env
 from kalos.verb import Verb
 
 
@@ -26,111 +26,50 @@ class Kalos(object):
         self.static_dir = static_dir
         self.template_dir = template_dir
         self._SessionInterface = Session  # session处理类，可以重写
-        self.app_env = Env(name)   # 应用环境变量
+        self.app_env = Env(name)  # 应用环境变量
         self._safe_serializer = URLSafeSerializer(self.app_env.SECRET_KEY, self.app_env.SALT)
         self.before_request_funcs = []  # 在请求处理之前调用
         self.after_request_funcs = []  # 请求处理完，返回response之前调用
-        self.before_handler_funcs = []  # 在handler调用之前调用
-        self.after_handler_funcs = []   # 在handler调用之后调用
         self.app_error_handlers = dict()  # http 错误代码处理映射
-    
-    def register_app_error_handler(self, error_no):
-        """
-        注册http错误码处理
-        """
-        def recoder(f):
-            self.app_error_handlers[error_no] = f
-            return f
-        return recoder
 
-    def register_before_request(self, f):
+    def register_roselle(self, path):
         """
-        注册请求处理之前调用的方法, 没有参数
-        :param f:
-        :return:f:
+        注册view或中间件
+        :param path: 模块绝对路径
+        :return:
         """
-        self.before_request_funcs.append(f)
-        return f
-
-    def register_after_request(self, f):
-        """
-        注册请求处理完，返回response之前调用的方法, 参数为response对象
-        :param f:
-        :return:f:
-        """
-        self.after_request_funcs.append(f)
-        return f
-
-    def register_before_handle(self, f):
-        """
-        注册在handler调用之前调用的方法
-        :param f:
-        :return:f:
-        """
-        self.before_handler_funcs.append(f)
-        return f
-
-    def register_after_handle(self, f):
-        """
-        注册在handler调用之后调用的方法
-        :param f:
-        :return:f:
-        """
-        self.after_handler_funcs.append(f)
-        return f
-
-    def __register__(self, path):
-        __import__(path)
-
-    __router_map__ = {}
-
-    def route(self, group="", url="/", methods=None):
-        def wrapper(func):
-            @functools.wraps(func)
-            def inner_wrapper(*args, **kwargs):
-                def inner_inner_wrapper(*args, **kwargs):
-                    for f in self.before_handler_funcs:
-                        try:
-                            f()
-                        except Exception as e:
-                            warnings.warn(e, RuntimeWarning)
-                    resp = wrap_response(func, *args, **kwargs)
-                    # 包装成
-                    for f in self.after_handler_funcs:
-                        try:
-                            f()
-                        except Exception as e:
-                            warnings.warn(e, RuntimeWarning)
-                    return resp
-                return inner_inner_wrapper(*args, **kwargs)
-            # 弥补wrapper之后签名改变的问题
-            inner_wrapper = wrapper_pangolin(inner_wrapper, func)
-            new_group, new_url, new_methods = group, url, methods
-            if new_group and new_group.startswith("/"):
-                new_group = new_group[1:]
-            if new_url:
-                if not new_url.startswith("/"):
-                    new_url = "/" + new_url
-                    warnings.warn("url should startswith `\\`", SyntaxWarning)
-            if not new_methods:
-                new_methods = [Verb.GET]
-            else:
-                if type(new_methods) is not list:
-                    new_methods = [new_methods.upper()]
-                else:
-                    new_methods = map(lambda x: x.upper(), new_methods)
-                for m in new_methods:
-                    if m not in Verb.__slots__:
-                        msg = 'do not support method {}'.format(m)
-                        raise Exception(msg)
-            router = Router(new_group, new_url, new_methods)
+        paths = path.split(":")
+        if len(paths) == 1:
+            module_path = paths[0]
+            roselle_name = "ros"
+        elif len(paths) > 1:
+            module_path = paths[0]
+            roselle_name = paths[1]
+        else:
+            raise Exception("register failed, the path is wrong")
+        m = import_module(module_path)
+        ros = getattr(m, roselle_name)
+        # 注册路由
+        for router, func in ros.__router_map__.iteritems():
             if self.find_router_handler(router)[0]:
                 msg = "duplicate router {}".format(router)
                 raise Exception(msg)
             else:
-                self.__class__.__router_map__[router] = inner_wrapper
-            return inner_wrapper
-        return wrapper
+                self.__class__.__router_map__[router] = func
+
+        # 注册__app_error_handlers__
+        for code, func in ros.__app_error_handlers__.iteritems():
+            self.app_error_handlers[code] = func
+
+        # 注册before_request
+        for func in ros.__before_request__:
+            self.before_request_funcs.append(func)
+
+        # 注册after_request
+        for func in ros.__after_request__:
+            self.after_request_funcs.append(func)
+
+    __router_map__ = {}
 
     def find_router_handler(self, router):
         """find the router"""
@@ -182,7 +121,7 @@ class Kalos(object):
         # 调用错误码处理方法
         handle_error_func = self.app_error_handlers.get(response.status)
         if handle_error_func and callable(handle_error_func):
-            response = wrap_response(handle_error_func)
+            response = wrap_response(handle_error_func, response.status)
         wrapper_resp = WrapperResponse(response, start_response)
         opened_session.save_session(self, wrapper_resp)
         for f in self.after_request_funcs:

@@ -10,7 +10,8 @@ import json
 from kalos.server import Kalos
 from kalos.response import Response
 from kalos.request import request
-from kalos.session import session, login_required
+from kalos.session import login_required
+from kalos.registry import Roselle
 
 books = dict()
 
@@ -32,59 +33,69 @@ def p(*args):
 
 app = Kalos()
 
-if __name__ == "__main__":
-    @app.register_app_error_handler(401)
-    def handle():
-        return json.dumps({
-            "code": 401,
-            "msg": "未授权"
-        }), 401
-    app.register_before_handle(lambda :  p("before handle"))
-    app.register_after_handle(lambda :  p("after handle"))
-    app.register_before_request(lambda : p("before request"))
-    app.register_after_request(lambda x: x)
+ros = Roselle(__file__)
 
-    # it works as add_book = app.route(...)(login_required(add_book))
-    @app.route(group="book", url="/put", methods=["PUT"])
-    @login_required
-    def add_book():
-        id_ = request.form.get("id", m=int)
-        name = request.form.get("name")
-        book = Book(id_=id_, name=name)
-        books.update({
-            id_: book
-        })
-        return book.to_string(), 200
 
-    @app.route(group="book", url="/put", methods=["POST"])
-    def add_book():
-        id_ = request.form.get("id", m=int)
-        name = request.form.get("name")
-        book = Book(id_=id_, name=name)
-        books.update({
-            id_: book
-        })
-        return book.to_string(), 200
+@ros.register_app_error_handler(401)
+def handle(code):
+    return json.dumps({
+        "code": 401,
+        "msg": "未授权"
+    }), 401
 
-    @app.route(group="book", url="/<:id|int>", methods="GET")
-    def get_book(id):
-        print id, 00000
-        book = books.get(id)
-        if not book:
-            return "", 404
-        return book.to_string()
 
-    @app.route(group="book", url="/<:id|int>", methods=["DELETE"])
-    def delete_book(id):
-        try:
-            books.pop(id)
-        except KeyError:
-            pass
-        return json.dumps({"code": 0, "len": len(books)})
+ros.register_before_request(lambda: p("before request"))
+ros.register_after_request(lambda x: x)
 
-    @app.route(url="/redirect")
-    def redirect():
-        r = Response(status=302, Location="https://www.google.com")
-        return r
 
-    app.run()
+# it works as add_book = app.route(...)(login_required(add_book))
+@ros.route(group="book", url="/put", methods=["PUT"])
+@login_required
+def add_book():
+    id_ = request.form.get("id", m=int)
+    name = request.form.get("name")
+    book = Book(id_=id_, name=name)
+    books.update({
+        id_: book
+    })
+    return book.to_string(), 200
+
+
+@ros.route(group="book", url="/put", methods=["POST"])
+def add_book_put():
+    id_ = request.form.get("id", m=int)
+    name = request.form.get("name")
+    book = Book(id_=id_, name=name)
+    books.update({
+        id_: book
+    })
+    return book.to_string(), 200
+
+
+@ros.route(group="book", url="/<:id|int>", methods="GET")
+def get_book(id):
+    print id, 00000
+    book = books.get(id)
+    if not book:
+        return "", 404
+    return book.to_string()
+
+
+@ros.route(group="book", url="/<:id|int>", methods=["DELETE"])
+def delete_book(id):
+    try:
+        books.pop(id)
+    except KeyError:
+        pass
+    return json.dumps({"code": 0, "len": len(books)})
+
+
+@ros.route(url="/redirect")
+def redirect():
+    r = Response(status=302, Location="https://www.google.com")
+    return r
+
+
+app.register_roselle("tests.test_kalos")
+
+app.run()
