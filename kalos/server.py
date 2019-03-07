@@ -1,9 +1,11 @@
 # coding=utf-8
 
 import inspect
+import os
+import select
 import warnings
 from importlib import import_module
-from wsgiref.simple_server import make_server
+from wsgiref.simple_server import make_server, WSGIServer
 
 from itsdangerous import URLSafeSerializer
 
@@ -14,6 +16,24 @@ from kalos.router import Router
 from kalos.session import Session, session_local
 from kalos.utils import Env
 from kalos.verb import Verb
+
+
+class KalosServer(WSGIServer, object):
+    def serve_forever_bsd(self, max_events=2000):
+        kqueue = select.kqueue()
+        kevents = [select.kevent(self.socket.fileno(), filter=select.KQ_FILTER_READ,
+                                 flags=select.KQ_EV_ADD)]
+        while True:
+            events = kqueue.control(kevents, max_events)
+            for event in events:
+                if event.filter == select.KQ_FILTER_READ:
+                    self._handle_request_noblock()
+
+    def serve_forever(self, poll_wait=0.5):
+        if os.uname()[0] == "Darwin":
+            self.serve_forever_bsd()
+        else:
+            super(KalosServer, self).serve_forever(poll_wait)
 
 
 class Kalos(object):
@@ -138,7 +158,7 @@ class Kalos(object):
         return self.__class__.__router_map__
 
     def run(self, host="127.0.0.1", port=10101):
-        server = make_server(host, port, self.wsgi_app)
+        server = make_server(host, port, self.wsgi_app, server_class=KalosServer)
         print("{} is listening {}:{}".format(self.name, host, port))
         print("\033[1;32;40m")
         print(__kalos__)
