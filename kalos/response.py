@@ -3,6 +3,7 @@
 from kalos import __version__
 from kalos.mime import MIME
 from kalos.utils import cookie_date
+from kalos.template import Template
 
 
 class StatusCode(object):
@@ -172,4 +173,17 @@ def wrap_response(func, *args, **kwargs):
             resp = Response(data=response)
         else:
             resp = response
+    return resp
+
+
+def render_template(tpl, *args, **context):
+    """
+    渲染模版引擎， 返回html
+    :param tpl:
+    :param context:
+    :return: response
+    """
+    tpl = Template(tpl)
+    data = tpl.render(*args, **context)
+    resp = Response(data=data, content_type=MIME.Html)
     return resp

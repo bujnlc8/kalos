@@ -9,3 +9,4 @@ class MIME(object):
     Text = "text/plain"
     Form = "application/x-www-form-urlencoded"
     Multipart = "multipart/form-data"
+    Html = "text/html; charset=utf-8"

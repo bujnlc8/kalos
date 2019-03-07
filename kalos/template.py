@@ -163,6 +163,7 @@ class Template(object):
                                 blank_num += 1
                             else:
                                 break
+                        self.flush_buffer()
                         self.cb.add_lines("%sresult.append(%s)" % (
                             segment[:blank_num], segment[blank_num + 5:]))
                     else:

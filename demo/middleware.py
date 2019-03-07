@@ -20,13 +20,13 @@ def handle(code):
 
 @ros.register_before_request
 def before_request():
-    request.start_time = time.time()
+    request.start_time = time.time() * 1000
     session["name"] = "hello kalos"
 
 
 @ros.register_after_request
 def after_request(resp):
-    now = time.time()
-    print "spend %f" % (now - request.start_time)
+    now = time.time() * 1000
+    print "spend %f ms" % (now - request.start_time)
     print session["name"]
     return resp
