@@ -6,6 +6,9 @@
     {{x}}
     {% if a %}...{% endif %}
     {% for x in list %}...{% endfor %}
+    {py
+        print a+b
+    py}
 """
 
 import re
@@ -23,21 +26,12 @@ class CodeBuilder(object):
     INDENT_STEP = 4
 
     def indent(self):
-        """
-        缩进代码
-        """
         self.indent_level += self.INDENT_STEP
 
     def deindent(self):
-        """
-        缩退代码
-        """
         self.indent_level -= self.INDENT_STEP
 
     def add_lines(self, line):
-        """
-        根据缩进加入代码
-        """
         self.codes.append(" " * self.indent_level + line)
 
     def __str__(self):
@@ -45,7 +39,7 @@ class CodeBuilder(object):
 
     def get_global(self):
         """
-        将render函数发不到global
+        将render函数发布到global
         :return:
         """
         python_source = str(self)
@@ -76,26 +70,51 @@ class Template(object):
             self.cb.add_lines("result.extend([%s])" % ",".join(self.buffered))
         self.buffered = []
 
-    def resolve_var(self, expr):
-        if expr in self.loop_vars:
-            return expr
-        if "." in expr:
-            expr_splits = expr.split(".")
-            return "context['%s'].%s" % (expr_splits[0], expr_splits[1])
-        else:
-            return "context['%s']" % expr
+    @staticmethod
+    def resolve_var(expr):
+        split_tokens = re.split(r"(?s)(\.|\|)", expr.replace(" ", ""))
+        index = 0
+        result = split_tokens[index]
+        index += 1
+        while index < len(split_tokens):
+            try:
+                # 找操作符
+                operator = split_tokens[index]
+                if operator not in (".", "|"):
+                    raise Exception('do not support operator %s' % operator)
+            except IndexError:
+                index += 1
+            except Exception as e:
+                raise
+            else:
+                # 找操作数
+                index += 1
+                try:
+                    operand = split_tokens[index]
+                except Exception as e:
+                    raise e
+                else:
+                    if operand:
+                        if operator == ".":
+                            result = "getattr(%s, %s)" % (result, repr(operand))
+                        elif operator == "|":
+                            result = result + ".%s()" % operand
+                    index += 1
+        return result
 
     def analysis(self):
         self.cb.add_lines("def render_func(context):")
         self.cb.indent()
         self.cb.add_lines("result=[]")  # result用来保存最后生成的结果
         self.cb.add_lines("to_str=str")
+        # 将context中的变量释放为单个变量
+        for key in self.context.keys():
+            self.cb.add_lines("%s = context['%s']" % (key, key))
 
         self.op_type = []
-        self.loop_vars = []
 
         # see https://docs.python.org/2/library/re.html#re.S
-        tokens = re.split(r"(?s)({{.*?}}|{%.*? %}|{#.*?#})", self.text)
+        tokens = re.split(r"(?s)({{.*?}}|{%.*? %}|{#.*?#}|{py.*?py})", self.text)
         for token in tokens:
             if token.startswith("{#"):
                 continue
@@ -109,18 +128,45 @@ class Template(object):
                     if len(words) != 2:
                         raise Exception("can not understand if")
                     self.op_type.append("if")
-                    self.cb.add_lines("if context[%s]:" % repr(words[1]))
+                    self.cb.add_lines("if %s :" % words[1])
                     self.cb.indent()
                 if words[0] == "for":  # "{% for x in list %}"
                     self.op_type.append("for")
-                    self.cb.add_lines("for %s in context[%s]:" % (words[1], repr(words[3])))
-                    self.loop_vars.append(words[1])
+                    self.cb.add_lines("for %s in %s:" % (words[1], words[3]))
                     self.cb.indent()
                 elif words[0].startswith("end"):
                     op_type = words[0][3:]
                     if self.op_type.pop() != op_type:
                         raise Exception("expression error")
                     self.cb.deindent()
+            elif token.startswith("{py"):
+                py = token[3:-3]
+                segments = py.split("\n")
+                start_blank = 0
+                for segment in segments:
+                    if len(segment) == 0:
+                        continue
+                    else:
+                        for x in segment:
+                            if x in ("\t", " "):
+                                start_blank += 1
+                            else:
+                                break
+                        break
+                for segment in segments:
+                    # 去除前面的start_bank个空格
+                    segment = segment[start_blank:]
+                    if segment.replace(" ", "").replace("\t", "").startswith("print"):
+                        blank_num = 0
+                        for x in segment:
+                            if x in (" ", "\t"):
+                                blank_num += 1
+                            else:
+                                break
+                        self.cb.add_lines("%sresult.append(%s)" % (
+                            segment[:blank_num], segment[blank_num + 5:]))
+                    else:
+                        self.cb.add_lines(segment)
             else:
                 self.buffered.append(repr(token))
         self.flush_buffer()
@@ -137,6 +183,7 @@ class Template(object):
 if __name__ == '__main__':
     tpl = """
     hello {{ name }}
+    {{a.b.b | upper}} {{a.b.b }}
     {# This will be ignored #}
     {% if name %}
         yes
@@ -144,6 +191,18 @@ if __name__ == '__main__':
     {% for x in list %}
     number: {{x}}
     {% endfor %}
+    {py
+    print 200+b
+    for x in xrange(b):
+        print(str(x) + '\\n')
+    py}
     """
+
+    class B(object):
+        b = 'aBc'
+
+    class A(object):
+        b = B()
+    a = A()
     t = Template(tpl)
-    print t.render({"list": [2, 3, 4, 5]}, name="haihui")
+    print t.render({"list": [2, 3, 4, 5]}, name="haihui", a=a, b=100)
