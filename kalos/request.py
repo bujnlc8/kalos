@@ -31,48 +31,48 @@ class Request(object):
     def __init__(self, environment):
         self._environment = environment
         # 1.0.0.127.in-addr.arpa
-        self.remote_host = self._environment["REMOTE_HOST"]
+        self.remote_host = self._environment.get("REMOTE_HOST", "")
         # HTTP/1.1
-        self.server_protocol = self._environment["SERVER_PROTOCOL"]
+        self.server_protocol = self._environment.get("SERVER_PROTOCOL", "")
         # WSGIServer/0.1 Python/2.7.15
-        self.server_software = self._environment["SERVER_SOFTWARE"]
+        self.server_software = self._environment.get("SERVER_SOFTWARE", "")
         # GET
-        self.method = self._environment["REQUEST_METHOD"]
+        self.method = self._environment.get("REQUEST_METHOD", "")
         # a=1&b=2
-        self.query_string = self._environment["QUERY_STRING"]
+        self.query_string = self._environment.get("QUERY_STRING", "")
         # 1.0.0.127.in-addr.arpa
-        self.server_name = self._environment["SERVER_NAME"]
+        self.server_name = self._environment.get("SERVER_NAME", "")
         # 127.0.0.1
-        self.remote_addr = self._environment["REMOTE_ADDR"]
+        self.remote_addr = self._environment.get("REMOTE_ADDR", "")
         # 10101
-        self.server_port = self._environment["SERVER_PORT"]
+        self.server_port = self._environment.get("SERVER_PORT", "")
         # '8'
-        self._content_length = self._environment["CONTENT_LENGTH"]
+        self._content_length = self._environment.get("CONTENT_LENGTH", "")
         # 8
         self.content_length = int(self._content_length) if self._content_length else 0
         # host
-        self.http_host = self._environment["HTTP_HOST"]
+        self.http_host = self._environment.get("HTTP_HOST", "")
         # */*
-        self.http_accept = self._environment["HTTP_ACCEPT"]
+        self.http_accept = self._environment.get("HTTP_ACCEPT", "")
         # (1, 0)
-        self.wsgi_version = self._environment["wsgi.version"]
+        self.wsgi_version = self._environment.get("wsgi.version", "")
         # curl/7.54.0
-        self.http_user_agent = self._environment["HTTP_USER_AGENT"]
+        self.http_user_agent = self._environment.get("HTTP_USER_AGENT", "")
         #  CGI/1.1
-        self.gateway_interface = self._environment["GATEWAY_INTERFACE"]
+        self.gateway_interface = self._environment.get("GATEWAY_INTERFACE", "")
         # False
-        self.wsgi_run_once = self._environment["wsgi.run_once"]
+        self.wsgi_run_once = self._environment.get("wsgi.run_once", "")
         # True
-        self.wsgi_multiprocess = self._environment["wsgi.multiprocess"]
+        self.wsgi_multiprocess = self._environment.get("wsgi.multiprocess", "")
         # text/plain
-        self._content_type = self._environment["CONTENT_TYPE"]
-        self.content_type =  parse_header(self._content_type)[0]
+        self._content_type = self._environment.get("CONTENT_TYPE", "")
+        self.content_type = parse_header(self._content_type)[0]
         # http
-        self.url_scheme = self._environment["wsgi.url_scheme"]
+        self.url_scheme = self._environment.get("wsgi.url_scheme", "")
         # /abc
-        self.path_info = self._environment["PATH_INFO"]
+        self.path_info = self._environment.get("PATH_INFO", "")
         # fileobject
-        self.file = self._environment["wsgi.input"]
+        self.file = self._environment.get("wsgi.input", "")
 
     @property
     def headers(self):
@@ -188,7 +188,7 @@ class Cookie(object):
 
     def __iter__(self):
         for k, v in self.__cookie__dict__.iteritems():
-            yield k,v
+            yield k, v
 
     def __setattr__(self, key, value):
         self.__cookie__dict__[key] = value

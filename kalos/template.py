@@ -192,11 +192,13 @@ if __name__ == '__main__':
     {% for x in list %}
     number: {{x}}
     {% endfor %}
+    {% for x in xrange(3) %}
     {py
-    print 200+b
-    for x in xrange(b):
-        print(str(x) + '\\n')
+        print 200+b
+        for x in xrange(b):
+            print(str(x) + '\\n')
     py}
+    {% endfor %}
     """
 
     class B(object):
