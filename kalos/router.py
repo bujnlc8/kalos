@@ -8,7 +8,7 @@ from kalos.verb import Verb
 
 class Router(object):
     """
-    路由封装 ,支持`/a/b/<:id|int>` 这种形式
+    路由封装 ,支持`/a/b/<id|int>` 这种形式
     :param group: 分组，分组可以看成是url的前缀
     :param url: url和group共同构成完整的url
     :methods: 注册的方法 见`kalos.verb.Verb`
@@ -27,7 +27,7 @@ class Router(object):
 
     @property
     def has_variable(self):
-        return re.search(r"<:.*>", self.complete_url) is not None
+        return re.search(r"<.*>", self.complete_url) is not None
 
     def __repr__(self):
         return "{}-{}".format(self.complete_url, self.methods)
@@ -49,13 +49,13 @@ class Router(object):
             if len(url_splits) != len(other_splits):
                 return False
             for index in xrange(len(url_splits)):
-                if re.match(r"<:.*>", url_splits[index]):
+                if re.match(r"<.*>", url_splits[index]):
                     continue
                 else:
                     if url_splits[index] == other_splits[index]:
                         continue
                     else:
-                        if re.match(r"<:.*>", other_splits[index]):
+                        if re.match(r"<.*>", other_splits[index]):
                             continue
                         else:
                             return False
@@ -86,7 +86,7 @@ class Router(object):
         url_splits = url.split("/")
         for index in xrange(len(self_splits)):
             s = self_splits[index]
-            if re.match(r"<:.*>", s):
+            if re.match(r"<.*>", s):
                 # <:id|int>
                 s = s[2:-1]
                 ss = s.split("|")

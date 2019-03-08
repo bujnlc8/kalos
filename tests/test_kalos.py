@@ -71,7 +71,7 @@ def add_book_put():
     return book.to_string(), 200
 
 
-@ros.route(group="book", url="/<:id|int>", methods="GET")
+@ros.route(group="book", url="/<id|int>", methods="GET")
 def get_book(id):
     print id, 00000
     book = books.get(id)
@@ -80,7 +80,7 @@ def get_book(id):
     return book.to_string()
 
 
-@ros.route(group="book", url="/<:id|int>", methods=["DELETE"])
+@ros.route(group="book", url="/<id|int>", methods=["DELETE"])
 def delete_book(id):
     try:
         books.pop(id)
