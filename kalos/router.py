@@ -11,7 +11,7 @@ class Router(object):
     路由封装 ,支持`/a/b/<:id|int>` 这种形式
     :param group: 分组，分组可以看成是url的前缀
     :param url: url和group共同构成完整的url
-    :methods: 注册的方法 见`httpY.verb.Verb`
+    :methods: 注册的方法 见`kalos.verb.Verb`
     """
 
     def __init__(self, group="", url="", methods=None):

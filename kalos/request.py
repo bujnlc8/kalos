@@ -20,7 +20,7 @@ _header_list = {
     "CONTENT_TYPE": "CONTENT_TYPE",
     "PATH_INFO": "PATH_INFO",
     "REMOTE_HOST": "REMOTE_HOST",
-    "HTTP_COOKIE": "COOKIE"
+    "HTTP_COOKIE": "COOKIE",
 }
 
 

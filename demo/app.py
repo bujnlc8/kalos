@@ -9,7 +9,7 @@ views = [
 
 
 def create_app():
-    app = Kalos()
+    app = Kalos(app_file=__file__)
     for view in views:
         app.register_roselle(view)
     return app

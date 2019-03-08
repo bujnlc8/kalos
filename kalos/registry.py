@@ -11,7 +11,7 @@ from kalos.verb import Verb
 
 class Roselle(object):
     """
-    洛神，负责view和middleware的注册
+    `洛神`，负责view和middleware的注册
     """
 
     def __init__(self, name):
@@ -21,7 +21,7 @@ class Roselle(object):
         self.__before_request__ = []
         self.__after_request__ = []
 
-    def route(self, group="", url="/", methods=None):
+    def route(self, url="/", group="", methods=None):
         def wrapper(func):
             @functools.wraps(func)
             def inner_wrapper(*args, **kwargs):

@@ -1,9 +1,13 @@
 # coding=utf-8
 
+import functools
+import os
+
 from kalos import __version__
 from kalos.mime import MIME
-from kalos.utils import cookie_date
+from kalos.session import current_user, app
 from kalos.template import Template
+from kalos.utils import cookie_date, wrapper_pangolin
 
 
 class StatusCode(object):
@@ -94,19 +98,11 @@ class Response(object):
         self.headers.append(("Content-Type", content_type))
         for k, v in kwargs.iteritems():
             self.headers.append((k, v))
-        self.headers.append(("Content-Length", str(self.length)))
 
     def __call__(self, *args, **kwargs):
         for k, v in kwargs.iteritems():
             self.headers.append((k, v))
         return repr(StatusCode(self.status)), self.headers
-
-
-response_200 = Response()
-
-response_404 = Response(data="Kalos is missing...", status=404)
-
-response_401 = Response(data="You are not certification", status=401)
 
 
 def make_redirect(code=302, location="", response=None):
@@ -176,14 +172,36 @@ def wrap_response(func, *args, **kwargs):
     return resp
 
 
+def login_required(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        if not (current_user and current_user.is_login):
+            return Response(status=401)
+        else:
+            return func(*args, **kwargs)
+
+    return wrapper_pangolin(wrapper, func)
+
+
 def render_template(tpl, *args, **context):
     """
     渲染模版引擎， 返回html
-    :param tpl:
+    :param tpl: 以tpl或html结尾的文件, 否则认为是模版字符串
     :param context:
     :return: response
     """
-    tpl = Template(tpl)
+    text = []
+    if tpl.endswith(".tpl") or tpl.endswith(".html"):
+        full_path = os.sep.join([app.template_path, tpl])
+        try:
+            with open(full_path, 'r') as f:
+                for x in f:
+                    text.append(x)
+        except IOError as e:
+            raise e
+    else:
+        text = [tpl]
+    tpl = Template("".join(text))
     data = tpl.render(*args, **context)
     resp = Response(data=data, content_type=MIME.Html)
     return resp

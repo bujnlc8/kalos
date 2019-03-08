@@ -2,6 +2,7 @@
 
 import os
 
+from datetime import datetime
 from thread import get_ident
 
 
@@ -87,7 +88,7 @@ def cookie_date(d):
     :param d:
     :return:
     """
-    d = d.utctimetuple()
+    d = d.timetuple()
     return '%s, %02d%s%s%s%s %02d:%02d:%02d GMT' % (
         ('Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun')[d.tm_wday],
         d.tm_mday, "-",
@@ -95,6 +96,12 @@ def cookie_date(d):
          'Oct', 'Nov', 'Dec')[d.tm_mon - 1],
         "-", str(d.tm_year), d.tm_hour, d.tm_min, d.tm_sec
     )
+
+
+def de_cookie_date(d):
+    d = d.split(", ")[-1]
+    d = d[:-4]
+    return datetime.strptime(d, "%d-%b-%Y %H:%M:%S")
 
 
 def wrapper_pangolin(wrapper, wrapped):
@@ -110,6 +117,7 @@ def wrapper_pangolin(wrapper, wrapped):
     else:
         wrapper.__origin_func__ = wrapped
     return wrapper
+
 
 class Local(object):
     """

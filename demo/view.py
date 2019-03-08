@@ -14,6 +14,11 @@ def get_book(id):
     return "", 401
 
 
+@ros.route(url="/")
+def index():
+    return "ok"
+
+
 @ros.route(url="/tpl")
 def test_tpl():
     tpl = """
@@ -56,3 +61,13 @@ def test_tpl():
         "name": "linghaihui",
         "now": datetime.now().strftime("%Y-%m-%d %H:%M:%S")},
     books=books, )
+
+
+@ros.route("/tpltpl")
+def tpltpl():
+    return render_template("test.tpl", name="haihui")
+
+
+@ros.route("/tplhtml")
+def tplhtml():
+    return render_template("test.html", name="haihui")

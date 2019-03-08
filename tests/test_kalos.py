@@ -8,9 +8,8 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 import json
 from kalos.server import Kalos
-from kalos.response import Response
+from kalos.response import Response, login_required
 from kalos.request import request
-from kalos.session import login_required
 from kalos.registry import Roselle
 
 books = dict()

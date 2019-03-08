@@ -2,32 +2,51 @@
 
 import inspect
 import os
-import select
 import warnings
 from importlib import import_module
 from wsgiref.simple_server import make_server, WSGIServer
 
+import select
 from itsdangerous import URLSafeSerializer
 
 from kalos import __kalos__
+from kalos.mime import Suffix_mime
 from kalos.request import Request, request_local
-from kalos.response import response_404, WrapperResponse, Response, wrap_response
+from kalos.response import WrapperResponse, Response, wrap_response
 from kalos.router import Router
 from kalos.session import Session, session_local
+from kalos.static import StaticFile
 from kalos.utils import Env
 from kalos.verb import Verb
 
 
 class KalosServer(WSGIServer, object):
-    def serve_forever_bsd(self, max_events=2000):
+
+    def serve_forever_bsd(self, max_events=1000):
         kqueue = select.kqueue()
-        kevents = [select.kevent(self.socket.fileno(), filter=select.KQ_FILTER_READ,
-                                 flags=select.KQ_EV_ADD)]
+        kevents = [select.kevent(self.socket.fileno(), filter=select.KQ_FILTER_READ, flags=select.KQ_EV_ADD)]
+        index = 0
+        request_addr = dict()
         while True:
             events = kqueue.control(kevents, max_events)
             for event in events:
-                if event.filter == select.KQ_FILTER_READ:
-                    self._handle_request_noblock()
+                # socket进来，将event加入监听
+                if event.ident == self.socket.fileno():
+                    request, client_address = self.socket.accept()
+                    index += 1
+                    request_addr[index] = (request, client_address)
+                    kevents.append(select.kevent(request.fileno(), filter=select.KQ_FILTER_READ, flags=select.KQ_EV_ADD, udata=index))
+                elif event.filter == select.KQ_FILTER_READ and event.udata > 0 and event.flags == select.KQ_EV_ADD:
+                    try:
+                        kevents.remove(
+                            select.kevent(request_addr[event.udata][0].fileno(),
+                                          filter=select.KQ_FILTER_READ, flags=select.KQ_EV_ADD, udata=event.udata))
+                    except Exception as e:
+                        pass
+                    # t = Thread(target=self._handle_request_noblock_bsd, args=request_addr[event.udata])
+                    self._handle_request_noblock_bsd(*request_addr[event.udata])
+                    #t.setDaemon(True)
+                    #t.run()
 
     def serve_forever(self, poll_wait=0.5):
         if os.uname()[0] == "Darwin":
@@ -35,13 +54,26 @@ class KalosServer(WSGIServer, object):
         else:
             super(KalosServer, self).serve_forever(poll_wait)
 
+    def _handle_request_noblock_bsd(self, request, client_address):
+        if self.verify_request(request, client_address):
+            try:
+                self.process_request(request, client_address)
+            except:
+                self.handle_error(request, client_address)
+                self.shutdown_request(request)
+        else:
+            self.shutdown_request(request)
+
 
 class Kalos(object):
     """
     A simple http framework
+    :param static_dir: 静态文件目录
+    :param template_dir: 模版目录
+    :param: app_file: app实例所在文件
     """
 
-    def __init__(self, name="Kalos", static_dir="static", template_dir="template"):
+    def __init__(self, name="Kalos", static_dir="static", template_dir="template", app_file=""):
         self.name = name
         self.static_dir = static_dir
         self.template_dir = template_dir
@@ -51,6 +83,21 @@ class Kalos(object):
         self.before_request_funcs = []  # 在请求处理之前调用
         self.after_request_funcs = []  # 请求处理完，返回response之前调用
         self.app_error_handlers = dict()  # http 错误代码处理映射
+        self.app_file = app_file
+
+    @property
+    def static_server(self):
+        return StaticFile(self)
+
+    @property
+    def static_path(self):
+        """静态文件目录和app定义的文件在同一个目录下面"""
+        return os.sep.join([os.path.dirname(os.path.abspath(self.app_file)), self.static_dir])
+
+    @property
+    def template_path(self):
+        """模板文件目录应该和app定义在同一个目录下面"""
+        return os.sep.join([os.path.dirname(os.path.abspath(self.app_file)), self.template_dir])
 
     def register_roselle(self, path):
         """
@@ -104,7 +151,6 @@ class Kalos(object):
 
     def wsgi_app(self, environment, start_response):
         """
-        目前仅处理api请求，忽略静态文件
         :param environment:
         :param start_response:
         """
@@ -113,31 +159,36 @@ class Kalos(object):
         request_local.put("request", request)
         opened_session = self._SessionInterface().open_session(self, request)
         session_local.put("session", opened_session)
+        session_local.put("app", self)
         for f in self.before_request_funcs:
             try:
                 f()
             except Exception as e:
                 warnings.warn(e, RuntimeWarning)
-        router = Router(url=request.path_info, methods=request.method)
-        r, handler = self.find_router_handler(router)
-        # 处理404
-        if handler is None:
-            response = response_404
-        elif request.method == Verb.OPTIONS:  # 处理OPTIONS
-            response = Response(Allow=",".join(r.methods))
+        # 处理静态文件
+        if "." in request.path_info and request.path_info.split(".")[-1] in Suffix_mime:
+            response = self.static_server(request, request.path_info)
         else:
-            # 解析url中的变量，放入handler
-            variables = []
-            if r.has_variable:
-                variables = r.get_variable_list(request.path_info)
-            argspec = inspect.getargspec(handler.__origin_func__)
-            if len(argspec.args) == 0:
-                response = handler()
+            router = Router(url=request.path_info, methods=request.method)
+            r, handler = self.find_router_handler(router)
+            # 处理404
+            if handler is None:
+                response = Response(status=404)
+            elif request.method == Verb.OPTIONS:  # 处理OPTIONS
+                response = Response(Allow=",".join(r.methods))
             else:
-                if argspec.args[0] == "request":
-                    response = handler(request, *variables)
+                # 解析url中的变量，放入handler
+                variables = []
+                if r.has_variable:
+                    variables = r.get_variable_list(request.path_info)
+                argspec = inspect.getargspec(handler.__origin_func__)
+                if len(argspec.args) == 0:
+                    response = handler()
                 else:
-                    response = handler(*variables)
+                    if argspec.args[0] == "request":
+                        response = handler(request, *variables)
+                    else:
+                        response = handler(*variables)
         # 调用错误码处理方法
         handle_error_func = self.app_error_handlers.get(response.status)
         if handle_error_func and callable(handle_error_func):
@@ -151,11 +202,15 @@ class Kalos(object):
                 warnings.warn(e, RuntimeWarning)
         request_local.remove("request")
         session_local.remove("session")
+        session_local.remove("app")
         return wrapper_resp()
 
     @property
     def routers(self):
         return self.__class__.__router_map__
+
+    def __call__(self, environ, start_response):
+        return self.wsgi_app(environ, start_response)
 
     def run(self, host="127.0.0.1", port=10101):
         server = make_server(host, port, self.wsgi_app, server_class=KalosServer)

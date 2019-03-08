@@ -1,12 +1,10 @@
 # coding=utf-8
 
-import functools
 from abc import ABCMeta, abstractmethod, abstractproperty
 
 from datetime import datetime, timedelta
 
-from kalos.response import response_401
-from kalos.utils import Proxy, wrapper_pangolin, Local
+from kalos.utils import Proxy, Local
 
 
 class UserABC(object):
@@ -134,13 +132,4 @@ session = session_local("session")
 
 current_user = Proxy(lambda: session, "user")
 
-
-def login_required(func):
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        if not (current_user and current_user.is_login):
-            return response_401
-        else:
-            return func(*args, **kwargs)
-
-    return wrapper_pangolin(wrapper, func)
+app = session_local("app")
